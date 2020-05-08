@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Atlas Planned Maintenance Test Scenario Format &#8212; astrolabe  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Technical Design: Testing Drivers Against Atlas Planned Maintenance" href="technical-design.html" />
+    <link rel="prev" title="Workload Executor Specification" href="spec-workload-executor.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="atlas-planned-maintenance-test-scenario-format">
+<span id="test-scenario-format-specification"></span><h1>Atlas Planned Maintenance Test Scenario Format<a class="headerlink" href="#atlas-planned-maintenance-test-scenario-format" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Detailed information about terms that are italicized in this document can be found in the
+<a class="reference internal" href="technical-design.html#terms-technical-design"><span class="std std-ref">Terms</span></a> section.</p>
+</div>
+<p>The YAML file format described herein is used to define platform-independent <em>Atlas Planned Maintenance Tests</em> in
+YAML-formatted <em>Test Scenario Files</em>. Each Test Scenario File describes exactly one Atlas Planned Maintenance Test.
+A Test Scenario File has the following keys:</p>
+<ul class="simple">
+<li><p>maintenancePlan (document): a <em>Planned Maintenance Scenario</em> object. Each object has the following keys:</p>
+<ul>
+<li><p>initialConfiguration (document): Description of <em>Cluster Configuration Options</em> to be used for initializing the
+test cluster. This document MUST contain the following keys:</p>
+<ul>
+<li><p>clusterConfiguration (document): Document containing initial <em>Basic Configuration Options</em> values.
+This document MUST, at a minimum, have all fields <strong>required</strong> by the
+<a class="reference external" href="https://docs.atlas.mongodb.com/reference/api/clusters-create-one/">Create One Cluster</a> endpoint.</p></li>
+<li><p>processArgs (document): Document containing initial <em>Advanced Configuration Option</em> values. This MAY be an empty
+document if the maintenance plan does not require modifying the Advanced Configuration Options.</p></li>
+</ul>
+</li>
+<li><p>finalConfiguration (document): Description of <strong>new</strong> <em>Cluster Configuration Options</em> to be applied to the
+test cluster. This document MUST contain the following keys (note that at least one of these fields MUST be
+a non-empty document):</p>
+<ul>
+<li><p>clusterConfiguration (document): Document containing final <em>Basic Configuration Option</em> values.
+This MAY be an empty document if no changes to the Basic Configuration Options are needed by the maintenance plan.
+If non-empty, this document MUST, at a minimum, have all fields <strong>required</strong> by the
+<a class="reference external" href="https://docs.atlas.mongodb.com/reference/api/clusters-modify-one/">Modify One Cluster</a> endpoint.</p></li>
+<li><p>processArgs (document): Document containing final <em>Advanced Configuration Option</em> values.
+This MAY be an empty document if the maintenance plan does not require modifying the Advanced Configuration Options.</p></li>
+</ul>
+</li>
+<li><p>uriOptions (document): Document containing <code class="docutils literal notranslate"><span class="pre">key:</span> <span class="pre">value</span></code> pairs of URI options that must be included in the
+connection string passed to the workload executor by the <em>Test Orchestrator</em>.</p></li>
+</ul>
+</li>
+<li><p>driverWorkload (document): Object describing a <em>Driver Workload</em>. Has the following keys:</p>
+<ul>
+<li><p>collection (string): Name of the collection to use for running test operations.</p></li>
+<li><p>database (string): Name of the database to use for running test operations.</p></li>
+<li><p>testData (array, optional): Array of documents to be inserted into the <code class="docutils literal notranslate"><span class="pre">database.collection</span></code> namespace before
+starting the test run. Test data insertion is performed by the <em>Test Orchestrator</em> and this field MUST be ignored
+by the <em>Workload Executor</em>.</p></li>
+<li><p>operations (array): Array of Operation objects, each describing an operation to be executed. The operations are run
+sequentially and repeatedly until the maintenance completes. Each object has the following keys:</p>
+<ul>
+<li><p>object (string): The entity on which to perform the operation. Can be “database” or “collection”.</p></li>
+<li><p>name (string): name of the operation.</p></li>
+<li><p>arguments (document): the names and values of arguments to be passed to the operation.</p></li>
+<li><p>result (optional, multiple types): The result of executing the operation. This will correspond to the operation’s
+return value.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<div class="section" id="changes">
+<h2>Changes<a class="headerlink" href="#changes" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>2020-04-22: Move the test format specification into a separate file.</p></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">astrolabe</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installing-running-locally.html">Installing and Running Locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integration-guide.html">Integration Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="spec-workload-executor.html">Workload Executor Specification</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Atlas Planned Maintenance Test Scenario Format</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#changes">Changes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="technical-design.html">Technical Design: Testing Drivers Against Atlas Planned Maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="spec-workload-executor.html" title="previous chapter">Workload Executor Specification</a></li>
+      <li>Next: <a href="technical-design.html" title="next chapter">Technical Design: Testing Drivers Against Atlas Planned Maintenance</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, MongoDB, Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/spec-test-format.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

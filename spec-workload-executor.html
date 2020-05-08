@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Workload Executor Specification &#8212; astrolabe  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Atlas Planned Maintenance Test Scenario Format" href="spec-test-format.html" />
+    <link rel="prev" title="Integration Guide" href="integration-guide.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="workload-executor-specification">
+<span id="id1"></span><h1>Workload Executor Specification<a class="headerlink" href="#workload-executor-specification" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Detailed information about terms that are italicized in this document can be found in the
+<a class="reference internal" href="technical-design.html#terms-technical-design"><span class="std std-ref">Terms</span></a> section.</p>
+</div>
+<p>The <em>Workload Executor</em> is a script that translates a <em>Driver Workload</em> specified in a <em>Test Scenario File</em> into
+driver operations that are run against a test cluster. This script MUST be implemented by every driver.
+Workload Executors enable the reuse of <code class="docutils literal notranslate"><span class="pre">astrolabe</span></code>’s test orchestration and cluster monitoring capabilities across
+all drivers by providing an abstraction for translating <em>Driver Workloads</em> specified in the platform-agnostic
+test format into native driver operations that are run against a live Atlas cluster.</p>
+<div class="section" id="user-facing-api">
+<h2>User-Facing API<a class="headerlink" href="#user-facing-api" title="Permalink to this headline">¶</a></h2>
+<p>The Workload Executor MUST be a standalone executable that can be invoked as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ path/to/workload-executor connection-string workload-spec
+</pre></div>
+</div>
+<p>where:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">path/to/workload-executor</span></code> is the path to the Workload Executor executable script,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">connection-string</span></code> is <code class="docutils literal notranslate"><span class="pre">mongodb+srv</span></code> which may contain any of the
+<a class="reference external" href="https://github.com/mongodb/specifications/blob/master/source/uri-options/uri-options.rst">standardized URI options</a>
+that is to be used to connect to the Atlas cluster, and</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">workload-spec</span></code> is a JSON blob representation of the <code class="docutils literal notranslate"><span class="pre">driverWorkload</span></code> field from the
+<a class="reference internal" href="spec-test-format.html#test-scenario-format-specification"><span class="std std-ref">Atlas Planned Maintenance Test Scenario Format</span></a>.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Some languages might find it convenient to wrap their natively implemented workload executors in a shell
+script in order to conform to the user-facing API described here. See <a class="reference internal" href="integration-guide.html#wrapping-workload-executor-shell-script"><span class="std std-ref">Wrapping native workload executors with a shell script</span></a>
+for details.</p>
+</div>
+</div>
+<div class="section" id="behavioral-description">
+<h2>Behavioral Description<a class="headerlink" href="#behavioral-description" title="Permalink to this headline">¶</a></h2>
+<p>After accepting the inputs, the workload executor:</p>
+<ol class="arabic">
+<li><p>MUST use the input connection string to instantiate the <code class="docutils literal notranslate"><span class="pre">MongoClient</span></code> of the driver that is to be tested.
+Note that the workload executor:</p>
+<ul class="simple">
+<li><p>MUST NOT override any of the URI options specified in the incoming connection string.</p></li>
+<li><p>MUST NOT augment the incoming connection string with any additional URI options.</p></li>
+</ul>
+</li>
+<li><p>MUST parse the incoming the <code class="docutils literal notranslate"><span class="pre">driverWorkload</span></code> document and use the <code class="docutils literal notranslate"><span class="pre">MongoClient</span></code> instance from the previous step
+to run the operations described therein in accordance with the <a class="reference internal" href="spec-test-format.html#test-scenario-format-specification"><span class="std std-ref">Atlas Planned Maintenance Test Scenario Format</span></a>.
+Note that the workload executor:</p>
+<ul class="simple">
+<li><p>MUST run operations sequentially and in the order in which they appear in the <code class="docutils literal notranslate"><span class="pre">operations</span></code> array.</p></li>
+<li><p>MUST repeat the entire set of specified operations indefinitely, until the <strong>termination signal</strong> from
+<code class="docutils literal notranslate"><span class="pre">astrolabe</span></code> is received.</p></li>
+<li><p>MUST keep count of the number of operations failures (<code class="docutils literal notranslate"><span class="pre">numFailures</span></code>) that are encountered while running
+operations. An operation failure is when the actual return value of an operation does not match its
+expected return value (as defined in the <code class="docutils literal notranslate"><span class="pre">result</span></code> field of the <code class="docutils literal notranslate"><span class="pre">driverWorkload</span></code>).</p></li>
+<li><p>MUST keep count of the number of operation errors (<code class="docutils literal notranslate"><span class="pre">numErrors</span></code>) that are encountered while running
+operations. An operation error is when running an operation unexpectedly raises an error. Workload executors
+implementations should try to be as resilient as possible to these kinds of operation errors.</p></li>
+<li><p>MUST keep count of the number of operations that are run successfully (<code class="docutils literal notranslate"><span class="pre">numSuccesses</span></code>).</p></li>
+</ul>
+</li>
+<li><p>MUST set a signal handler for handling the termination signal that is sent by <code class="docutils literal notranslate"><span class="pre">astrolabe</span></code>. The termination signal
+is used by <code class="docutils literal notranslate"><span class="pre">astrolabe</span></code> to communicate to the workload executor that it should stop running operations. Upon
+receiving the termination signal, the workload executor:</p>
+<ul class="simple">
+<li><p>MUST stop running driver operations and exit soon.</p></li>
+<li><p>MUST dump collected workload statistics as a JSON file named <code class="docutils literal notranslate"><span class="pre">results.json</span></code> in the current working directory
+(i.e. the directory from where the workload executor is being executed). Workload statistics MUST contain the
+following fields (drivers MAY report additional statistics using field names of their choice):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">numErrors</span></code>: the number of operation errors that were encountered during the test.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">numFailures</span></code>: the number of operation failures that were encountered during the test.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">numSuccesses</span></code>: the number of operations executed successfully during the test.</p></li>
+</ul>
+</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The values of <code class="docutils literal notranslate"><span class="pre">numErrors</span></code> and <code class="docutils literal notranslate"><span class="pre">numFailures</span></code> are used by <code class="docutils literal notranslate"><span class="pre">astrolabe</span></code> to determine the overall
+success or failure of a driver workload execution. A non-zero value for either of these fields is construed
+as a sign that something went wrong while executing the workload and the test is marked as a failure.
+The workload executor’s exit code is <strong>not</strong> used for determining success/failure and is ignored.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">astrolabe</span></code> encounters an error in parsing the workload statistics dumped to <code class="docutils literal notranslate"><span class="pre">results.json</span></code>
+(caused, for example, by malformed JSON), <code class="docutils literal notranslate"><span class="pre">numErrors</span></code>, <code class="docutils literal notranslate"><span class="pre">numFailures</span></code>, and <code class="docutils literal notranslate"><span class="pre">numSuccesses</span></code>
+will be set to <code class="docutils literal notranslate"><span class="pre">-1</span></code> and the test run will be assumed to have failed.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The choice of termination signal used by <code class="docutils literal notranslate"><span class="pre">astrolabe</span></code> varies by platform. <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code> <a class="footnote-reference brackets" href="#f1" id="id2">1</a> is used as
+the termination signal on Linux and OSX, while <code class="docutils literal notranslate"><span class="pre">CTRL_BREAK_EVENT</span></code> <a class="footnote-reference brackets" href="#f2" id="id3">2</a> is used on Windows.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>On Windows systems, the workload executor is invoked via Cygwin Bash.</p>
+</div>
+</li>
+</ol>
+</div>
+<div class="section" id="pseudocode-implementation">
+<h2>Pseudocode Implementation<a class="headerlink" href="#pseudocode-implementation" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span># targetDriver is the driver to be tested.
+import { MongoClient } from &quot;targetDriver&quot;
+
+# The workloadRunner function accepts a connection string and a stringified JSON blob describing the driver workload.
+# This function will be invoked with arguments parsed from the command-line invocation of the workload executor script.
+function workloadRunner(connectionString: string, driverWorkload: object): void {
+
+    # Use the MongoClient of the driver to be tested to connect to the Atlas Cluster.
+    const client = MongoClient(connectionString);
+
+    # Create objects which will be used to run operations.
+    const db = client.db(driverWorkload.database);
+    const collection = db.collection(driverWorkload.collection);
+
+    # Initialize counters.
+    var num_errors = 0;
+    var num_failures = 0;
+    var num_successes = 0;
+
+    # Run the workload - operations are run sequentially, repeatedly until the termination signal is received.
+    try {
+        while (True) {
+            for (let operation in workloadSpec.operations) {
+                try {
+                    # The runOperation method runs operations as per the test format.
+                    # The method return False if the actual return value of the operation does match the expected.
+                    var was_succesful = runOperation(db, collection, operation);
+                    if (was_successful) {
+                        num_successes += 1;
+                    } else {
+                        num_errors += 1;
+                    }
+                } catch (operationError) {
+                    # We end up here if runOperation raises an unexpected error.
+                    num_failures += 1;
+                }
+            }
+        }
+    } catch (terminationSignal) {
+        # The workloadExecutor MUST handle the termination signal gracefully.
+        # The termination signal will be used by astrolabe to terminate drivers operations that otherwise run ad infinitum.
+        # The workload statistics must be written to a file named results.json in the current working directory.
+        fs.writeFile(&#39;results.json&#39;, JSON.stringify({‘numErrors’: num_errors, &#39;numFailures&#39;: num_failures, &#39;numSuccesses&#39;: num_successes}));
+    }
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="reference-implementation">
+<h2>Reference Implementation<a class="headerlink" href="#reference-implementation" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="https://github.com/mongodb-labs/drivers-atlas-testing/blob/master/integrations/python/pymongo/workload-executor">PyMongo’s workload executor</a>
+serves as the reference implementation of the script described by this specification.</p>
+<p class="rubric">Footnotes</p>
+<dl class="footnote brackets">
+<dt class="label" id="f1"><span class="brackets"><a class="fn-backref" href="#id2">1</a></span></dt>
+<dd><p>See <a class="reference external" href="http://man7.org/linux/man-pages/man7/signal.7.html">http://man7.org/linux/man-pages/man7/signal.7.html</a> for details about Linux signals</p>
+</dd>
+<dt class="label" id="f2"><span class="brackets"><a class="fn-backref" href="#id3">2</a></span></dt>
+<dd><p>See <a class="reference external" href="https://docs.microsoft.com/en-us/windows/console/ctrl-c-and-ctrl-break-signals">https://docs.microsoft.com/en-us/windows/console/ctrl-c-and-ctrl-break-signals</a> for details about Windows
+console events</p>
+</dd>
+</dl>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">astrolabe</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installing-running-locally.html">Installing and Running Locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integration-guide.html">Integration Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Workload Executor Specification</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#user-facing-api">User-Facing API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#behavioral-description">Behavioral Description</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pseudocode-implementation">Pseudocode Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reference-implementation">Reference Implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="spec-test-format.html">Atlas Planned Maintenance Test Scenario Format</a></li>
+<li class="toctree-l1"><a class="reference internal" href="technical-design.html">Technical Design: Testing Drivers Against Atlas Planned Maintenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="integration-guide.html" title="previous chapter">Integration Guide</a></li>
+      <li>Next: <a href="spec-test-format.html" title="next chapter">Atlas Planned Maintenance Test Scenario Format</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, MongoDB, Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/spec-workload-executor.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
