@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+set -o xtrace   # Write all commands first to stderr
+set -o errexit  # Exit the script with error if any of the commands fail
+
+# Environment variables used as input:
+#   FRAMEWORK                       Set to specify .NET framework to test against. Values: "Net452", "NetStandard15",
+#                                   "NetStandard20", "nil"
+#   MAGIC_FILE_NAME                 Set to specify the name of the magic file name to create when SIGINT is received.
+# Environment variables produced as output:
+#   MAGIC_FILE_NAME                 The name of the magic file name this script will create upon receiving SIGINT
+
+FRAMEWORK=${FRAMEWORK:-netcoreapp2.1}
+MAGIC_FILE_NAME=${MAGIC_FILE_NAME:-nox}
+############################################
+#            Functions                     #
+############################################
+
+
+############################################
+#            Main Program                  #
+############################################
+CONNECTION_STRING=$1
+WORKLOAD_SPEC=$2
+
+echo I am $BASHPID...
+rm -f "$MAGIC_FILE_NAME"
+export MAGIC_FILE_NAME
+
+# Set a trap for the INT signal:
+# - wait for a state change in child process bearing ID $NATIVE_WORKLOAD_EXECUTOR_PID
+# - create the magic file
+# - exit with the same status/code as the exit code of the call to wait (which returns the exit code of $NATIVE_WORKLOAD_EXECUTOR_PID)
+# Note that calls to wait return immediately if the child has already changed state
+
+trap 'echo You have activated my trap card; touch $MAGIC_FILE_NAME; wait $NATIVE_WORKLOAD_EXECUTOR_PID; exit $?' INT
+# Invoke the workload executor as a background process and store its process ID as NATIVE_WORKLOAD_EXECUTOR_PID
+dotnet run --framework "${FRAMEWORK}" -p workload-executor.csproj "${CONNECTION_STRING}" "${WORKLOAD_SPEC}" &
+export NATIVE_WORKLOAD_EXECUTOR_PID=$!
+
+# Wait for a state change in $NATIVE_WORKLOAD_EXECUTOR_PID (without this the foreground process would return)
+wait $NATIVE_WORKLOAD_EXECUTOR_PID
